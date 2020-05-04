@@ -9,15 +9,37 @@
 #' @export
 #' @examples
 
-extract_records <- function(continent, year, taxon, write_output, output_path) {
 
+extract_records <- function(continent = NULL, country = NULL, year, taxon, write_output, output_path) {
 
-x <- rgbif::occ_data(hasCoordinate = T,
-              hasGeospatialIssue = F,
-              continent = continent,
-              scientificName = taxon,
-              year = year,
-              limit = 200000)
+  if (!is.null(continent) & !is.null(country)) {
+
+    stop("Can't specify both country and continent")
+
+  }
+
+if (!is.null(continent)) {
+
+  x <- rgbif::occ_data(hasCoordinate = T,
+                hasGeospatialIssue = F,
+                continent = continent,
+                scientificName = taxon,
+                year = year,
+                limit = 200000)
+
+} else if (!is.null(country)) {
+
+  x <- rgbif::occ_data(hasCoordinate = T,
+                       hasGeospatialIssue = F,
+                       country = country,
+                       scientificName = taxon,
+                       year = year,
+                       limit = 200000)
+} else {
+
+  stop("Must specify one of country or continent")
+
+}
 
 ## take the second element which is the "data" as opposed to the metadata
 
@@ -39,7 +61,7 @@ if ("data.species" %in% names(dat)) {
   dat <- dat[-which(duplicated(dat)), ]
 
   if (length(dat[,1]) == 200000) {
-    print("Warning: Reached max number of outputs, but more data is available.")
+    warning("Reached max number of outputs, but more data is available.")
   }
 
  nSpec <- length(unique(dat$species))
@@ -50,7 +72,7 @@ if ("data.species" %in% names(dat)) {
 
 } else {
   dat <- 0
-  print("this query produced zero records")
+  warning("This query produced zero records")
 }
 
 if (write_output == TRUE) {
@@ -64,4 +86,4 @@ return (dat)
 
 }
 
-?extract_records
+
