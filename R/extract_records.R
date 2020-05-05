@@ -1,16 +1,18 @@
 #' extract records from GBIF and format them for use in soaR
 #'
 #' This function is used to scrape GBIF for occurrence records for a chosen taxonomic group, on a chosen continent.
-#' @param continent String
-#' @param year numeric
-#' @param taxon string
+#' @param continent String. E.g. "south_america", "europe". Do not specify is country in not NULL.
+#' @param country string. E.g. "BR" for Brasil, "AR" for Argentina, and "CL" for Chile
+#' @param year string. year(s) for which to extract data. For a range, format as e.g. "1995,2010". For a single year, as e.g. "2005".
+#' @param taxon numeric. GBIF taxonomic key.
 #' @param write_output logical
-#' @param output_path string
+#' @param output_path string. Directory in which to save outputs.
+#' @param output_name string. Name of file to be saved if write_output = TRUE.
 #' @export
 #' @examples
 
-
-extract_records <- function(continent = NULL, country = NULL, year, taxon, write_output, output_path) {
+?occ_data
+extract_records <- function(continent = NULL, country = NULL, year, taxon, write_output, output_path, output_name) {
 
   if (!is.null(continent) & !is.null(country)) {
 
@@ -23,7 +25,7 @@ if (!is.null(continent)) {
   x <- rgbif::occ_data(hasCoordinate = T,
                 hasGeospatialIssue = F,
                 continent = continent,
-                scientificName = taxon,
+                taxonKey = taxon,
                 year = year,
                 limit = 200000)
 
@@ -32,7 +34,7 @@ if (!is.null(continent)) {
   x <- rgbif::occ_data(hasCoordinate = T,
                        hasGeospatialIssue = F,
                        country = country,
-                       scientificName = taxon,
+                       taxonKey = taxon,
                        year = year,
                        limit = 200000)
 } else {
@@ -77,8 +79,8 @@ if ("data.species" %in% names(dat)) {
 
 if (write_output == TRUE) {
 
-  save(dat, file=paste0(output_path,
-                   taxon, "_raw_data.rdata"))
+  save(dat, file=paste0(output_path, output_name,
+                   "_raw_data.rdata"))
 
 }
 
