@@ -11,7 +11,6 @@
 #' @export
 #' @examples
 
-?occ_data
 extract_records <- function(continent = NULL, country = NULL, year, taxon, write_output, output_path, output_name) {
 
   if (!is.null(continent) & !is.null(country)) {
@@ -54,17 +53,18 @@ if ("data.species" %in% names(dat)) {
 ## if there are create a data frame with variables of interest
 
   dat <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
-                  dat$data.decimalLatitude, dat$data.year)
+                  dat$data.decimalLatitude, dat$data.year, dat$data.country, dat$data.continent,
+                  dat$data.basisOfRecord)
 
-  colnames(dat) <- c("species","group","lon","lat","year")
-
-  dat <- dat[-which(is.na(dat$species)),]
-
-  dat <- dat[-which(duplicated(dat)), ]
+  colnames(dat) <- c("species","group","lon","lat","year","country","continent","basisOfRecord")
 
   if (length(dat[,1]) == 200000) {
     warning("Reached max number of outputs, but more data is available.")
   }
+
+  dat <- dat[-which(is.na(dat$species)),]
+
+  dat <- dat[-which(duplicated(dat)), ]
 
  nSpec <- length(unique(dat$species))
  nRec <- length(dat[,1])
