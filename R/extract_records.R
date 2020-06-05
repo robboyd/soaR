@@ -53,10 +53,11 @@ if ("data.species" %in% names(dat)) {
 ## if there are create a data frame with variables of interest
 
   dat <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
-                  dat$data.decimalLatitude, dat$data.year, dat$data.country, dat$data.continent,
+                  dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
+                  dat$data.country, dat$data.continent,
                   dat$data.basisOfRecord)
 
-  colnames(dat) <- c("species","group","lon","lat","year","country","continent","basisOfRecord")
+  colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord")
 
   if (length(dat[,1]) == 200000) {
     warning("Reached max number of outputs, but more data is available.")
