@@ -11,37 +11,37 @@
 #' @examples
 
 calcRepeatVisits <- function(inPath, taxon, res, start, end, output) {
-  
+
   load(paste0(inPath, taxon, "_raw_data.rdata"))
-  
+
   rast <- raster::raster(ncol=length(seq(-120,-30,res)),
                          nrow=length(seq(-60,30,res)),
                          xmn=-120,
                          xmx=-30,
                          ymn=-60,
                          ymx=30)
-  
+
   dat <- dat[which(dat$year >= start & dat$year <= end), ]
-  
+
   data <- data.frame(dat$lon, dat$lat)
-  
+
   rDat <- raster::rasterize(x = data, y = rast, fun = "count")
-  
+
   out <- raster::getValues(rDat)
-  
+
   if (output == "map") {
-    
+
     out <- sp::plot(rDat)
-    
+
   } else if (output == "hist") {
-    
-    out <- ggplot2::ggplot(data=NULL, ggplot2::aes(out)) + 
+
+    out <- ggplot2::ggplot(data=NULL, ggplot2::aes(out)) +
              ggplot2::geom_histogram(bins = 50) +
-      xlab("Repeat visits") +
-      theme_linedraw()
-    
+      ggplot2::xlab("Repeat visits") +
+      ggplot2::theme_linedraw()
+
   }
-  
+
   return(out)
-  
+
 }
