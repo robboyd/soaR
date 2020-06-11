@@ -55,10 +55,10 @@ if ("data.species" %in% names(dat)) {
   dat <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
                   dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
                   dat$data.country, dat$data.continent,
-                  dat$data.basisOfRecord, dat$data.catalogNumber)
+                  dat$data.basisOfRecord, dat$data.occurrenceID)
 
   colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
-                     "catalogNum")
+                     "occID")
 
   if (length(dat[,1]) == 200000) {
     warning("Reached max number of outputs, but more data is available.")
@@ -66,7 +66,9 @@ if ("data.species" %in% names(dat)) {
 
   dat <- dat[-which(is.na(dat$species)),]
 
-  dat <- dat[-which(duplicated(dat)), ]
+  if (any(duplicated(dat))) {
+    dat <- dat[-which(duplicated(dat)), ]
+  }
 
  nSpec <- length(unique(dat$species))
  nRec <- length(dat[,1])
@@ -89,5 +91,4 @@ if (write_output == TRUE) {
 return (dat)
 
 }
-
 
