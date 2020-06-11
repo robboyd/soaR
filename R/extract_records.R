@@ -1,7 +1,7 @@
 #' extract records from GBIF and format them for use in soaR
 #'
 #' This function is used to scrape GBIF for occurrence records for a chosen taxonomic group, on a chosen continent.
-#' @param continent String. E.g. "south_america", "europe". Do not specify is country in not NULL.
+#' @param continent String. E.g. "south_america", "europe". Do not specify unless country is NULL.
 #' @param country string. E.g. "BR" for Brasil, "AR" for Argentina, and "CL" for Chile
 #' @param year string. year(s) for which to extract data. For a range, format as e.g. "1995,2010". For a single year, as e.g. "2005".
 #' @param taxon numeric. GBIF taxonomic key.
@@ -55,9 +55,10 @@ if ("data.species" %in% names(dat)) {
   dat <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
                   dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
                   dat$data.country, dat$data.continent,
-                  dat$data.basisOfRecord)
+                  dat$data.basisOfRecord, dat$data.catalogNumber)
 
-  colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord")
+  colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
+                     "catalogNum")
 
   if (length(dat[,1]) == 200000) {
     warning("Reached max number of outputs, but more data is available.")
