@@ -166,26 +166,29 @@ runTelfer <- function (inPath, taxon, res = 0.5, p1, p2) {
 
     mod <- lm(p2Logit ~ p1Logit)
 
+    wts <- 1 / lm(abs(mod$residuals) ~ mod$fitted.values)$fitted.values^2
+
+    mod2 <- lm(p2Logit ~ p1Logit, weights = wts)
+
     ggplotRegression <- function (fit) {
 
       ggplot2::ggplot(fit$model, ggplot2::aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) +
         ggplot2::geom_point() +
         ggplot2::stat_smooth(method = "lm", col = "red") +
         ggplot2::labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 5),
-                           "Intercept =",signif(fit$coef[[1]],5 ),
-                           " Slope =",signif(fit$coef[[2]], 5),
-                           " P =",signif(summary(fit)$coef[2,4], 5))) +
+                           " Slope =",signif(fit$coef[[2]], 5))) +
         ggplot2::theme_linedraw()
+
   }
 
-    Plot <- ggplotRegression(mod)
+    Plot <- ggplotRegression(mod2)
 
     index <- data.frame(subSpp, residuals(mod), p1Counts, p2Counts)
     index <- index[order(-index[,2]),]
     colnames(index) <- c("species","index","p1Counts","p2Counts")
 
-    out <- list(index, Plot, presAb1, presAb2, sum(presAb1, presAb2))
-    names(out) <- c("Outputs", "Plot", "SampledCellsP1", "SampledCellsP2", "SampledCellsP1And2")
+    out <- list(index, Plot, presAb1, presAb2, sum(presAb1, presAb2), nCommonCells)
+    names(out) <- c("Outputs", "Plot", "SampledCellsP1", "SampledCellsP2", "SampledCellsP1And2", "nCommonCells")
 
   } else {
 
