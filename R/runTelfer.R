@@ -170,20 +170,29 @@ runTelfer <- function (inPath, taxon, res = 0.5, p1, p2) {
 
     mod2 <- lm(p2Logit ~ p1Logit, weights = wts)
 
+    maxInd <- which.max(as.numeric(residuals(mod2)))
+    minInd <- which.min(as.numeric(residuals(mod2)))
+
+    outliers <- data.frame(x = c(p1Logit[maxInd], p1Logit[minInd]),
+                           y = c(p2Logit[maxInd], p2Logit[minInd]))
+
     ggplotRegression <- function (fit) {
 
       ggplot2::ggplot(fit$model, ggplot2::aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) +
         ggplot2::geom_point() +
         ggplot2::stat_smooth(method = "lm", col = "red") +
-        ggplot2::labs(title = paste("Adj R2 = ",signif(summary(fit)$adj.r.squared, 5),
-                           " Slope =",signif(fit$coef[[2]], 5))) +
-        ggplot2::theme_linedraw()
+        ggplot2::labs(title = paste("nCells =", nCommonCells)) +
+        ggplot2::theme_linedraw() +
+        ggplot2::geom_text(data = outliers, ggplot2::aes(x=x, y = y,
+                                                         label = c(as.character(subSpp[maxInd]),
+                                                                   as.character(subSpp[minInd]))), color = "red") +
+        ggplot2::geom_point(data = outliers, ggplot2::aes(x=x, y = y), color = "red")
 
   }
 
     Plot <- ggplotRegression(mod2)
 
-    index <- data.frame(subSpp, residuals(mod), p1Counts, p2Counts)
+    index <- data.frame(subSpp, residuals(mod2), p1Counts, p2Counts)
     index <- index[order(-index[,2]),]
     colnames(index) <- c("species","index","p1Counts","p2Counts")
 
