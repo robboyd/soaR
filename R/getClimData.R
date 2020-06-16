@@ -13,6 +13,7 @@
 #' @param outPath Logical. If true the climate data are written as .asc files to outPath.
 #' @export
 #' @examples
+#'
 getClimData <- function(res = 0.5, xMin, xMax, yMin, yMax, inPath, outPath, bioClim, write) {
 
   files <- list.files("F:/SURPASS/data/worldClim/bio/",full.names = TRUE)
@@ -51,6 +52,8 @@ getClimData <- function(res = 0.5, xMin, xMax, yMin, yMax, inPath, outPath, bioC
 
   dat <- raster::aggregate(dat, fact = mult)
 
+  whichVars <- usdm::vifcor(dat, th = 0.7)
+
   if (write == TRUE) {
 
     raster::writeRaster(x = dat,
@@ -60,7 +63,7 @@ getClimData <- function(res = 0.5, xMin, xMax, yMin, yMax, inPath, outPath, bioC
 
   }
 
-  return(dat)
+  return(list(dat, whichVars))
 
 }
 
