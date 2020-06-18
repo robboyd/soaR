@@ -44,8 +44,6 @@ createPresAb <- function(inPath, taxon, species, minYear, maxYear, nAbs, matchPr
 
   ab <- ab[sampInd, ]
 
-  points(ab, col = "red")
-
   out <- list(pres, ab)
 
   names(out) <- c("Presence","pseudoAbsence")
