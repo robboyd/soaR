@@ -10,17 +10,26 @@
 #' @param nAbs Numeric. Number of pseudo absences to produce. Note that this is overriden if matchPres = TRUE.
 #' @param minYear Numeric.
 #' @param maxYear Numeric.
+#' @param maxYear Numeric. Threshold number of records below which species' are dropped.
 #' @export
 #' @examples
 #'
 
-createPresAb <- function(inPath, taxon, species, minYear, maxYear, nAbs, matchPres = FALSE) {
+createPresAb <- function(inPath, taxon, species, minYear, maxYear, nAbs, matchPres = FALSE, recThresh) {
 
   load(paste0(inPath, taxon, "_raw_data.rdata"))
 
   dat <-dat[dat$year >= minYear & dat$year <= maxYear,]
 
   pres <- dat[dat$species == species, c("lon", "lat")]
+
+  if (nrow(pres) < recThresh) {
+
+    warning("Number of records does not exceed recThresh")
+
+    out <- NULL
+
+  } else {
 
   ab <- dat[dat$species != species, c("lon", "lat")]
 
@@ -47,6 +56,8 @@ createPresAb <- function(inPath, taxon, species, minYear, maxYear, nAbs, matchPr
   out <- list(pres, ab)
 
   names(out) <- c("Presence","pseudoAbsence")
+
+  }
 
   return(out)
 
