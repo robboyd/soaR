@@ -8,44 +8,48 @@
 #' @param species String. Focal species' name (must be in chosen taxonomic group)
 #' @param matchPres Logical. If true, will produce absences such that there are an equal number to presences. Defaults to false
 #' @param nAbs Numeric. Number of pseudo absences to produce. Note that this is overriden if matchPres = TRUE.
-#' @param minYear Numeric. 
-#' @param maxYear Numeric. 
+#' @param minYear Numeric.
+#' @param maxYear Numeric.
 #' @export
 #' @examples
 #'
 
 createPresAb <- function(inPath, taxon, species, minYear, maxYear, nAbs, matchPres = FALSE) {
-  
+
   load(paste0(inPath, taxon, "_raw_data.rdata"))
-  
+
   dat <-dat[dat$year >= minYear & dat$year <= maxYear,]
 
   pres <- dat[dat$species == species, c("lon", "lat")]
 
   ab <- dat[dat$species != species, c("lon", "lat")]
-  
+
   "%!in%" <- Negate("%in%")
-  
+
   ab <- ab[ab %!in% pres]
 
-  sampInd <- sample(1:nrow(ab), nAbs)
-  
-  if (matchPres == TRUE) {
-    
-    sampInd <- sampInd[1:nrow(pres)]
-    
+  if (nrow(ab) < nrow(pres)) {
+
+    warning("More presences than possible locations for absences. Consider lowering the number of pseudo absences.")
+
   }
-  
+
+  sampInd <- sample(1:nrow(ab), nAbs)
+
+  if (matchPres == TRUE) {
+
+    sampInd <- sampInd[1:nrow(pres)]
+
+  }
+
   ab <- ab[sampInd, ]
 
-  plot(pres)
-  
   points(ab, col = "red")
- 
+
   out <- list(pres, ab)
-  
+
   names(out) <- c("Presence","pseudoAbsence")
-  
+
   return(out)
-  
+
 }
