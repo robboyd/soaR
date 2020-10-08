@@ -160,15 +160,6 @@ createPresAb <- function (inPath, taxon, species, minYear, maxYear, nAbs, matchP
   return(out)
 }
 
-spDat <- lapply(X = spp,
-                FUN = createPresAb,
-                inPath = "G:/TSDA/SDMs/Data/occurrence/",
-                taxon = taxa,
-                matchPres = TRUE,
-                minYear = 2000,
-                maxYear = 2015,
-                recThresh = 50)
-
 
 
 #' Fit species distribution models.
