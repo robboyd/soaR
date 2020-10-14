@@ -28,11 +28,6 @@ recordBreakdown <- function(inPath, taxon, start, end, output) {
 
 }
 
-recordBreakdown(inPath = "F:/SURPASS/data/raw_data/",
-                taxon = "Apidae",
-                start = 1950,
-                end = 2018,
-                output = "country")
 
 
 
