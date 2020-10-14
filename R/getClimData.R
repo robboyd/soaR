@@ -16,7 +16,7 @@
 #'
 getClimData <- function(res = 0.5, xMin, xMax, yMin, yMax, inPath, outPath, bioClim, write) {
 
-  files <- list.files("F:/SURPASS/data/worldClim/bio/",full.names = TRUE)
+  #files <- list.files("F:/SURPASS/data/worldClim/bio/",full.names = TRUE)
 
   names <- c("Annual Mean Temperature",
              "Mean Diurnal Range (Mean of monthly (max temp - min temp))",
