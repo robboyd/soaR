@@ -64,7 +64,7 @@ if ("data.species" %in% names(dat)) {
     warning("Reached max number of outputs, but more data is available.")
   }
 
-  dat <- dat[-which(is.na(dat$species)),]
+  dat <- dat[!is.na(dat$species),]
 
   if (any(duplicated(dat))) {
     dat <- dat[-which(duplicated(dat)), ]
