@@ -235,7 +235,7 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
     pred <- predict(climDat, fullMod, type=type, index = index)
 
-    plot(pred, col = matlab.like(30))
+    raster::plot(pred, col = matlab.like(30))
 
     points(spDat$Presence, pch = "+", cex = 0.4)
 
