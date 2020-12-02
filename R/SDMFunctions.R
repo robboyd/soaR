@@ -7,12 +7,13 @@
 #' @param taxa string. Taxonomic group. There must be a file in inPath that contains the taxonomic group name.
 #' @param write Logical. Write the outputs to file?
 #' @param outPath String. Where to store the outputs.
+#' @param degrade Logical. Whether or not to degrade the data from all records to uniqe species/ location records.
 #' @export
 #' @return
 #' A dataframe with four columns: species, year, eastings and northings.
 
 
-formatData <- function(inPath, taxa, write) {
+formatData <- function(inPath, taxa, write, degrade = TRUE) {
 
   file <- list.files(inPath, full.names = T, pattern = taxa)
 
@@ -22,17 +23,32 @@ formatData <- function(inPath, taxa, write) {
 
   colnames(occ) <- toupper(colnames(occ))
 
-  "%!in%" <- Negate("%in%")
-
-  if ("TO_GRIDREF" %!in% colnames(taxa_data)) {
+  if (!"TO_GRIDREF" %in% colnames(taxa_data)) {
 
     colnames(occ)[colnames(occ) == "SQ_1KM"] <- "TO_GRIDREF"
+
+  }
+
+  if (degrade == TRUE) {
+
+    drop <- which(duplicated(data.frame(occ[,c("TO_GRIDREF", "CONCEPT")])))
+
+    print(paste0("There are ", nrow(occ), " records in total"))
+
+    occ <- occ[-drop, ]
+
+    print(paste0("After removing records that are duplicated in terms of gridref and species, there
+               are ", nrow(occ), " records"))
+
 
   }
 
   # filter to only include records between 2000 and 2015
 
   occ <- occ[occ$YEAR >= 2000 & occ$YEAR <= 2015,]
+
+  print(paste0("And after dropping records outside of the temporal extent of the analysis, there are ",
+               nrow(occ), " records"))
 
   occ$cn <- gr_det_country(occ$TO_GRIDREF)
 
@@ -44,7 +60,26 @@ formatData <- function(inPath, taxa, write) {
 
   occ <- cbind(occ, coords)
 
-  if (length(unique(occ$cn) > 1)) {
+  if (any(is.na(occ$EASTING) | is.na(occ$NORTHING))) {
+
+    NAEast <- which(is.na(occ$EASTING))
+
+    NANorth <- which(is.na(occ$NORTHING))
+
+    nEast <- length(NAEast)
+
+    nNorth <- length(NANorth)
+
+    warning(paste("Could not obtain coordinates from grid references for", nEast, " records in terms of eastings and",
+                  nNorth, " records in terms of northings. Dropping these data."))
+
+    occ <- occ[-unique(c(NAEast, NANorth)), ]
+
+  }
+
+  ## If there are records from NI, reproject them on to OSGB
+
+  if (length(unique(occ$cn)) > 1) {
 
     GBCRS <- CRS("+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +datum=OSGB36 +units=m +no_defs")
 
@@ -75,7 +110,7 @@ formatData <- function(inPath, taxa, write) {
 
   if (write == TRUE) {
 
-    save(dat, file = paste0(outPath, taxa, ".rdata"))
+    save(dat, file = paste0("G:/TSDA/SDMs/Data/occurrence/1970to2019/", taxa, ".rdata"))
 
   }
 
