@@ -206,7 +206,7 @@ createPresAb <- function (inPath, taxon, species, minYear, maxYear, nAbs, matchP
 #' Fit logistic regression or random forest SDMs using the outputs of createPresAb and some covariates.
 #'
 #' @param species String. Species name (see getSpNames).
-#' @param model string. One of "lr" or "rf" for logistic regression or random forest.
+#' @param model string. One of "lr", "rf" or "max" for logistic regression, random forest or Maxent.
 #' @param climDat String. rasterStack object with n layers each representing a covariate.
 #' @param spDat String. Outputs of createPresAb for the chosen species.
 #' @param k Numeric. Number of folds for cross validation.
@@ -220,6 +220,8 @@ createPresAb <- function (inPath, taxon, species, minYear, maxYear, nAbs, matchP
 #' (a dataframe with a column for observations and further columns for the corresponding covariates).
 
 fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
+
+  print(species)
 
   ind <- which(names(spDat) == species)
 
@@ -235,98 +237,155 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
     if (any(is.na(pres$X_Precipitation.of.Driest.Month))) {
 
-      pres <- pres[-which(is.na(pres$X_Precipitation.of.Driest.Month)), ]
+      dropPres <- which(is.na(pres$X_Precipitation.of.Driest.Month))
+
+      print(paste("Dropping", length(dropPres), "records because they fall outside the extent of the covariate data"))
+
+      pres <- pres[-dropPres, ]
+
+      spDat$Presence <- spDat$Presence[-dropPres, ]
 
     }
 
     nRec <- nrow(pres)
 
-    ab <- data.frame(val = 0, extract(x = climDat, y = spDat$pseudoAbsence))
+    print(nRec)
 
-    if (any(is.na(ab$X_Precipitation.of.Driest.Month))) {
+    if (nRec < k) {
 
-      ab <- ab[-which(is.na(ab$X_Precipitation.of.Driest.Month)), ]
+      out <- NULL
 
-    }
+    } else {
 
-    allDat <- rbind(pres, ab)
+      ab <- data.frame(val = 0, extract(x = climDat, y = spDat$pseudoAbsence))
 
-    if (model == "lr") {
+      if (any(is.na(ab$X_Precipitation.of.Driest.Month))) {
 
-      fullMod <- glm(val ~., data = allDat, family = binomial(link = "logit"))
+        dropAb <- which(is.na(ab$X_Precipitation.of.Driest.Month))
 
-      type <- "response"
+        ab <- ab[-dropAb, ]
 
-      index <- NULL
-
-    } else if (model == "rf") {
-
-      fullMod <- randomForest(x = allDat[,2:ncol(allDat)],
-                         y = as.factor(allDat[,1]),
-                         importance = T,
-                         norm.votes = TRUE)
-
-      type <- "prob"
-
-      index <- 2
-
-    }
-
-    pred <- predict(climDat, fullMod, type=type, index = index)
-
-    raster::plot(pred, col = matlab.like(30))
-
-    points(spDat$Presence, pch = "+", cex = 0.4)
-
-    ## evaluate model performance with k fold cross validation
-
-    folds <- c(kfold(pres, k), kfold(ab, k))
-
-    e <- list()
-
-    for (i in 1:k) {
-
-      train <- allDat[folds != i,]
-
-      test <- allDat[folds == i,]
-
-      if (model == "lr") {
-
-        mod <- glm(val ~., data = train, family = binomial(link = "logit"))
-
-      } else if (model == "rf") {
-
-        mod <- randomForest(x = train[,2:ncol(train)],
-                           y = as.factor(train[,1]),
-                           importance = T,
-                           norm.votes = TRUE)
+        spDat$pseudoAbsence <- spDat$pseudoAbsence[-dropAb, ]
 
       }
 
-      e[[i]] <- evaluate(p=test[test$val == 1,], a=test[test$val == 0,], mod,
-                         tr = seq(0,1, length.out = 200))
+      allDat <- rbind(pres, ab)
 
-    }
+      if (model == "lr") {
 
-    auc <- mean(sapply( e, function(x){slot(x, "auc")} ))
+        fullMod <- glm(val ~., data = allDat, family = binomial(link = "logit"))
 
-    out <- NULL
+        type <- "response"
 
-    out <- list(species, nRec, fullMod, auc, k, pred, allDat)
+        index <- NULL
 
-    names(out) <- c("Species", "Number of records", "Model","AUC","Number of folds for validation", "Predictions", "Data")
+      } else if (model == "rf") {
 
-    if (write == TRUE) {
+        fullMod <- randomForest(x = allDat[,2:ncol(allDat)],
+                                y = as.factor(allDat[,1]),
+                                importance = T,
+                                norm.votes = TRUE)
 
-      print(species)
+        type <- "prob"
 
-      save(out, file = paste0(outPath, species, "_", model, ".rdata"))
+        index <- 2
+
+      } else if (model == "max") {
+
+        fullMod <- dismo::maxent(x = climDat,
+                                 p = spDat$Presence,
+                                 a = spDat$PseudoAbsence)
+
+        type = NULL
+
+        index = NULL
+
+      }
+
+      pred <- predict(climDat, fullMod, type=type, index = index)
+
+      plot(pred, col = matlab.like(30))
+
+      points(spDat$Presence, pch = "+", cex = 0.4)
+
+      ## evaluate model performance with k fold cross validation
+
+      folds <- kfold(pres, k)
+
+      abFolds <- kfold(ab, k)
+
+      allFolds <- c(folds, abFolds)
+
+      e <- list()
+
+      for (i in 1:k) {
+
+        if (model != "max") {
+
+          train <- allDat[allFolds != i,]
+
+          test <- allDat[allFolds == i,]
+
+        } else {
+
+          trainPres <- spDat$Presence[folds != i,]
+
+          trainAb <- spDat$pseudoAbsence[folds != i, ]
+
+          testPres <- spDat$Presence[folds == i,]
+
+          testAb <- spDat$pseudoAbsence[folds == i,]
+
+        }
+
+        if (model == "lr") {
+
+          mod <- glm(val ~., data = train, family = binomial(link = "logit"))
+
+        } else if (model == "rf") {
+
+          mod <- randomForest(x = train[,2:ncol(train)],
+                              y = as.factor(train[,1]),
+                              importance = T,
+                              norm.votes = TRUE)
+
+        } else if (model == "max") {
+
+          mod <- dismo::maxent(x = climDat, p = trainPres, a = trainAb)
+
+        }
+
+        if (model != "max") {
+
+          e[[i]] <- evaluate(p=test[test$val == 1,], a=test[test$val == 0,], mod,
+                             tr = seq(0,1, length.out = 200))
+
+        } else {
+
+          e[[i]] <- evaluate(p=testPres, a=testAb, x = climDat, mod,
+                             tr = seq(0,1, length.out = 200))
+
+        }
+
+      }
+
+      auc <- mean(sapply( e, function(x){slot(x, "auc")} ))
+
+      out <- NULL
+
+      out <- list(species, nRec, fullMod, auc, k, pred, allDat)
+
+      names(out) <- c("Species", "Number of records", "Model","AUC","Number of folds for validation", "Predictions", "Data")
+
+      if (write == TRUE) {
+
+        save(out, file = paste0(outPath, species, "_", model, ".rdata"))
+
+      }
 
     }
 
   }
-
-  return(out)
 
 }
 
