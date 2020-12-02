@@ -13,7 +13,11 @@
 #' A dataframe with four columns: species, year, eastings and northings.
 
 
-formatData <- function(inPath, taxa, write, degrade = TRUE) {
+formatData <- function(inPath,
+                       taxa,
+                       write,
+                       degrade = TRUE,
+                       outPath) {
 
   file <- list.files(inPath, full.names = T, pattern = taxa)
 
@@ -110,7 +114,7 @@ formatData <- function(inPath, taxa, write, degrade = TRUE) {
 
   if (write == TRUE) {
 
-    save(dat, file = paste0("G:/TSDA/SDMs/Data/occurrence/1970to2019/", taxa, ".rdata"))
+    save(dat, file = paste0(outPath, taxa, ".rdata"))
 
   }
 
