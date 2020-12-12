@@ -4,18 +4,18 @@
 \alias{fitSDM}
 \title{Fit species distribution models.}
 \usage{
-fitSDM(species, model, climDat, spDat, k, write, outPath)
+fitSDM(species, model, envDat, spDat, k = 5, write, outPath)
 }
 \arguments{
 \item{species}{String. Species name (see getSpNames).}
 
 \item{model}{string. One of "lr", "rf" or "max" for logistic regression, random forest or Maxent.}
 
-\item{climDat}{String. rasterStack object with n layers each representing a covariate.}
+\item{envDat}{String. rasterStack object with n layers each representing a covariate.}
 
 \item{spDat}{String. Outputs of createPresAb for the chosen species.}
 
-\item{k}{Numeric. Number of folds for cross validation.}
+\item{k}{Numeric. Number of folds for cross validation. Defaults to 5.}
 
 \item{write}{Logical. If TRUE writes results to file in outPath.}
 
@@ -28,5 +28,5 @@ A list with seven elements: 1) species name; 2) number of occurrence records; 3)
 (a dataframe with a column for observations and further columns for the corresponding covariates).
 }
 \description{
-Fit logistic regression or random forest SDMs using the outputs of createPresAb and some covariates.
+Fit logistic regression, random forest or Maxent models using the outputs of createPresAb and some covariates.
 }

@@ -43,6 +43,9 @@ createPresAb(
 
 \item{recThresh}{Numeric. Lower threshold number of records; species with fewer records are dropped.}
 
+\item{dat}{String. data.frame with occurrence records for all species in the group of interest. Could be the output of formatData.
+Must have column names "species", "eastings" and "northings".}
+
 \item{matchpres}{Logical. If TRUE this overrides nAbs and creates pseudo absences in equal number to the occurrence data.}
 
 \item{res}{Numeric. Spatial resolution in decimal degrees (defaults to 0.5)}

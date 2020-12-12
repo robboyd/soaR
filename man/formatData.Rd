@@ -4,18 +4,18 @@
 \alias{formatData}
 \title{Format scheme records for use in soaR}
 \usage{
-formatData(inPath, taxa, write, degrade = TRUE, outPath)
+formatData(occ, taxa, minYear, maxYear, degrade = TRUE)
 }
 \arguments{
-\item{inPath}{String. Path to the scheme data directory}
+\item{occ}{String. data.frame with occurrence records. Must have columns "YEAR", "CONCEPT" (species name) and one of "TO_GRIDREF" or "SQ_1KM".}
 
 \item{taxa}{string. Taxonomic group. There must be a file in inPath that contains the taxonomic group name.}
 
-\item{write}{Logical. Write the outputs to file?}
+\item{minYear}{Numeric. Drop all records prior to this year.}
+
+\item{maxYear}{Numeric. Drop all records later than this year.}
 
 \item{degrade}{Logical. Whether or not to degrade the data from all records to uniqe species/ location records.}
-
-\item{outPath}{String. Where to store the outputs.}
 }
 \value{
 A dataframe with four columns: species, year, eastings and northings.

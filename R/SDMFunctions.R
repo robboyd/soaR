@@ -142,9 +142,9 @@ getSpNames <- function(inPath, taxa) {
 #' Pseudo absences are created for individual species, but the function works at the group level
 #' because absences are inferred from the presences of non-focal species in the same group.
 #'
-#' @param inPath String. Path to outputs of formatData.
-#' @param taxon string. Taxonomic group. There must be a file in inPath that contains the taxonomic group name.
-#' @param species String. Species name. See getSpNames.
+#' @param dat String. data.frame with occurrence records for all species in the group of interest. Could be the output of formatData.
+#'                    Must have column names "species", "eastings" and "northings".
+#' @param species String. Species name.
 #' @param minYear Numeric. Lower threshold.
 #' @param minYear Numeric. Upper threshold.
 #' @param nAbs Numeric. Number of pseudo absences to create.
@@ -157,13 +157,16 @@ getSpNames <- function(inPath, taxa) {
 #' of the pseudo absences. The coordinate reference system is OSGB36.
 
 
-createPresAb <- function (inPath, taxon, species, minYear, maxYear, nAbs, matchPres = FALSE,
+createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres = TRUE,
           recThresh)
 {
 
-  print(species)
+  #if (c(colnames(dat)) != c("species", "year", "eastings", "northings")) {
+  #
+  #  stop("Wrong column names. Must be species, year, eastings and northings.")
+  #
+  #}
 
-  load(paste0(inPath, taxon, ".rdata"))
   dat <- dat[dat$year >= minYear & dat$year <= maxYear, ]
   pres <- dat[dat$species == species, c("eastings", "northings")]
   if (nrow(pres) < recThresh) {
@@ -198,13 +201,13 @@ createPresAb <- function (inPath, taxon, species, minYear, maxYear, nAbs, matchP
 
 #' Fit species distribution models.
 #'
-#' Fit logistic regression or random forest SDMs using the outputs of createPresAb and some covariates.
+#' Fit logistic regression, random forest or Maxent models using the outputs of createPresAb and some covariates.
 #'
 #' @param species String. Species name (see getSpNames).
 #' @param model string. One of "lr", "rf" or "max" for logistic regression, random forest or Maxent.
-#' @param climDat String. rasterStack object with n layers each representing a covariate.
+#' @param envDat String. rasterStack object with n layers each representing a covariate.
 #' @param spDat String. Outputs of createPresAb for the chosen species.
-#' @param k Numeric. Number of folds for cross validation.
+#' @param k Numeric. Number of folds for cross validation. Defaults to 5.
 #' @param write Logical. If TRUE writes results to file in outPath.
 #' @param outPath String. Where to store the outputs if write = TRUE.
 #' @export
@@ -214,7 +217,7 @@ createPresAb <- function (inPath, taxon, species, minYear, maxYear, nAbs, matchP
 #' 6) predicted probabilities of occurrence in raster format; and 7) the data used to fit the model
 #' (a dataframe with a column for observations and further columns for the corresponding covariates).
 
-fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
+fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath) {
 
   print(species)
 
@@ -228,7 +231,7 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
   } else {
 
-    pres <- data.frame(val = 1, extract(x = climDat, y = spDat$Presence))
+    pres <- data.frame(val = 1, extract(x = envDat, y = spDat$Presence))
 
     if (any(is.na(pres$X_Precipitation.of.Driest.Month))) {
 
@@ -252,7 +255,7 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
     } else {
 
-      ab <- data.frame(val = 0, extract(x = climDat, y = spDat$pseudoAbsence))
+      ab <- data.frame(val = 0, extract(x = envDat, y = spDat$pseudoAbsence))
 
       if (any(is.na(ab$X_Precipitation.of.Driest.Month))) {
 
@@ -287,7 +290,7 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
       } else if (model == "max") {
 
-        fullMod <- dismo::maxent(x = climDat,
+        fullMod <- dismo::maxent(x = envDat,
                                  p = spDat$Presence,
                                  a = spDat$PseudoAbsence)
 
@@ -297,7 +300,7 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
       }
 
-      pred <- predict(climDat, fullMod, type=type, index = index)
+      pred <- predict(envDat, fullMod, type=type, index = index)
 
       plot(pred, col = matlab.like(30))
 
@@ -346,7 +349,7 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
         } else if (model == "max") {
 
-          mod <- dismo::maxent(x = climDat, p = trainPres, a = trainAb)
+          mod <- dismo::maxent(x = envDat, p = trainPres, a = trainAb)
 
         }
 
@@ -357,7 +360,7 @@ fitSDM <- function(species, model, climDat, spDat, k, write, outPath) {
 
         } else {
 
-          e[[i]] <- evaluate(p=testPres, a=testAb, x = climDat, mod,
+          e[[i]] <- evaluate(p=testPres, a=testAb, x = envDat, mod,
                              tr = seq(0,1, length.out = 200))
 
         }
