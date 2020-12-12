@@ -19,3 +19,4 @@ Imports: ggplot2,
     maptools,
     sp,
     sf
+RoxygenNote: 7.0.2
