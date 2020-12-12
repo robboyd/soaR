@@ -3,27 +3,28 @@
 #' This function subsets scheme data by years, and converts UK or NI grid cells to eastings and northings
 #' on the OSGB36 coordinate reference system.
 #'
-#' @param inPath String. Path to the scheme data directory
+#' @param occ String. data.frame with occurrence records. Must have columns "YEAR", "CONCEPT" (species name) and one of "TO_GRIDREF" or "SQ_1KM".
 #' @param taxa string. Taxonomic group. There must be a file in inPath that contains the taxonomic group name.
-#' @param write Logical. Write the outputs to file?
-#' @param outPath String. Where to store the outputs.
+#' @param minYear Numeric. Drop all records prior to this year.
+#' @param maxYear Numeric. Drop all records later than this year.
 #' @param degrade Logical. Whether or not to degrade the data from all records to uniqe species/ location records.
 #' @export
 #' @return
 #' A dataframe with four columns: species, year, eastings and northings.
 
 
-formatData <- function(inPath,
+formatData <- function(occ,
                        taxa,
-                       write,
-                       degrade = TRUE,
-                       outPath) {
+                       minYear,
+                       maxYear,
+                       degrade = TRUE) {
 
-  file <- list.files(inPath, full.names = T, pattern = taxa)
+  if (!"CONCEPT" %in% colnames(occ) | !"YEAR" %in% colnames(occ) |
+      !"SQ_1KM" %in% colnames(occ) & !"TO_GRIDREF" %in% colnames(occ)) {
 
-  load(file)
+    stop("Wrong column names. Must include YEAR, CONCEPT and one of SQ_1KM or TO_GRIDREF.")
 
-  occ <- taxa_data
+  }
 
   colnames(occ) <- toupper(colnames(occ))
 
@@ -47,9 +48,9 @@ formatData <- function(inPath,
 
   }
 
-  # filter to only include records between 2000 and 2015
+  # filter records temporally
 
-  occ <- occ[occ$YEAR >= 2000 & occ$YEAR <= 2015,]
+  occ <- occ[occ$YEAR >= minYear & occ$YEAR <= maxYear,]
 
   print(paste0("And after dropping records outside of the temporal extent of the analysis, there are ",
                nrow(occ), " records"))
@@ -111,12 +112,6 @@ formatData <- function(inPath,
   dat <- occ[,c("CONCEPT", "YEAR", "EASTING", "NORTHING")]
 
   colnames(dat) <- c("species", "year", "eastings", "northings")
-
-  if (write == TRUE) {
-
-    save(dat, file = paste0(outPath, taxa, ".rdata"))
-
-  }
 
   return(dat)
 
