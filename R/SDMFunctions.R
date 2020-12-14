@@ -28,7 +28,7 @@ formatData <- function(occ,
 
   colnames(occ) <- toupper(colnames(occ))
 
-  if (!"TO_GRIDREF" %in% colnames(taxa_data)) {
+  if (!"TO_GRIDREF" %in% colnames(occ)) {
 
     colnames(occ)[colnames(occ) == "SQ_1KM"] <- "TO_GRIDREF"
 
