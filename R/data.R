@@ -8,3 +8,14 @@
 #'  prioSpecies
 #' }
 "prioSpecies"
+
+
+#' Names of species in NVC plant communities.
+#'
+#' @source NA.
+#' @format A data frame with one column: species name.
+#' @examples
+#' \dontrun{
+#'  NVCSpecies
+#' }
+"NVCSpecies"
