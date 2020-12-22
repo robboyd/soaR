@@ -302,7 +302,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath) {
 
       pred <- predict(envDat, fullMod, type=type, index = index)
 
-      plot(pred, col = matlab.like(30))
+      sp::plot(pred, col = matlab.like(30))
 
       points(spDat$Presence, pch = "+", cex = 0.4)
 
