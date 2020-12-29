@@ -150,6 +150,10 @@ getSpNames <- function(inPath, taxa) {
 #' @param nAbs Numeric. Number of pseudo absences to create.
 #' @param matchpres Logical. If TRUE this overrides nAbs and creates pseudo absences in equal number to the occurrence data.
 #' @param recThresh Numeric. Lower threshold number of records; species with fewer records are dropped.
+#' @param screenRaster String. If not NULL then occurrence data and pseudo absences are screened against the specified raster.
+#'                     If any occurrence or pseudo absence points fall in areas where the raster is NA, then they are dropped.
+#'                     The function will then remove occurrence and pseudo absence points as necessary to ensure they are in equal number
+#'                     if matchPres == TRUE.
 #' @export
 #' @return
 #' A list with n elements, where n is the number of species in the group. Each element contains two
@@ -158,15 +162,8 @@ getSpNames <- function(inPath, taxa) {
 
 
 createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres = TRUE,
-          recThresh)
+                          recThresh, screenRaster = NULL)
 {
-
-  #if (c(colnames(dat)) != c("species", "year", "eastings", "northings")) {
-  #
-  #  stop("Wrong column names. Must be species, year, eastings and northings.")
-  #
-  #}
-
   dat <- dat[dat$year >= minYear & dat$year <= maxYear, ]
   pres <- dat[dat$species == species, c("eastings", "northings")]
   if (nrow(pres) < recThresh) {
@@ -174,27 +171,56 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
     out <- NULL
   }
   else {
-    ab <- dat[dat$species != species, c("eastings", "northings")]
-
-    if (nrow(ab) > 7e+5) {
-      ab <- ab[sample(1:nrow(ab), 7e+5),]
+    ab <- dat[dat$species != species, c("eastings",
+                                        "northings")]
+    if (nrow(ab) > 7e+05) {
+      ab <- ab[sample(1:nrow(ab), 7e+05), ]
     }
-
     ab <- ab[!ab %in% pres]
 
     if (nrow(ab) < nrow(pres)) {
       warning("More presences than possible locations for absences. Consider lowering the number of pseudo absences.")
     }
-
-    sampInd <- sample(1:nrow(ab), nAbs)
     if (matchPres == TRUE) {
-      sampInd <- sampInd[1:nrow(pres)]
+      sampInd <- sample(1:nrow(ab), nrow(pres))
+    } else {
+      sampInd <- sample(1:nrow(ab), nAbs)
     }
+
     ab <- ab[sampInd, ]
     out <- list(pres, ab)
     names(out) <- c("Presence", "pseudoAbsence")
+
+    ## if screenRaster is specified, check if any presence or absence points fall outside of the raster extent (i.e. they are NA).
+    ## If some data fall outside of the extent of the covariates, drop them, and drop the equivalent number of absences orpresences
+    ## to ensure they are equal in number.
+
+    if (!is.null(screenRaster)) {
+
+      presDrop <- raster::extract(screenRaster, out$Presence)
+
+      abDrop <- raster::extract(screenRaster, out$pseudoAbsence)
+
+      if (any(is.na(presDrop))) out$Presence <- out$Presence[-which(is.na(presDrop)), ]
+
+      if (any(is.na(abDrop))) out$pseudoAbsence <- out$pseudoAbsence[-which(is.na(abDrop)), ]
+
+      if (nrow(out$Presence) > nrow(out$pseudoAbsence)) {
+
+        out$Presence <- out$Presence[1:nrow(out$pseudoAbsence), ]
+
+      } else if (nrow(out$Presence) < nrow(out$pseudoAbsence)) {
+
+        out$pseudoAbsence <- out$pseudoAbsence[1:nrow(out$Presence), ]
+
+      }
+
+    }
+
   }
+
   return(out)
+
 }
 
 
@@ -210,6 +236,10 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 #' @param k Numeric. Number of folds for cross validation. Defaults to 5.
 #' @param write Logical. If TRUE writes results to file in outPath.
 #' @param outPath String. Where to store the outputs if write = TRUE.
+#' @param predict Logical. Whether or not to predict the fitted models on to the covariate rasters. Prediction
+#'                         significantly increases execution time but will probably need to be done at some point
+#'                         anyway.
+#' @param plot Logical. Whether or not to show plots of predicted probabilities of occurrence if predict = TRUE.
 #' @export
 #' @return
 #' A list with seven elements: 1) species name; 2) number of occurrence records; 3) a model object
@@ -217,7 +247,7 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 #' 6) predicted probabilities of occurrence in raster format; and 7) the data used to fit the model
 #' (a dataframe with a column for observations and further columns for the corresponding covariates).
 
-fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath) {
+fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict = TRUE, plot = TRUE) {
 
   print(species)
 
@@ -269,45 +299,6 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath) {
 
       allDat <- rbind(pres, ab)
 
-      if (model == "lr") {
-
-        fullMod <- glm(val ~., data = allDat, family = binomial(link = "logit"))
-
-        type <- "response"
-
-        index <- NULL
-
-      } else if (model == "rf") {
-
-        fullMod <- randomForest(x = allDat[,2:ncol(allDat)],
-                                y = as.factor(allDat[,1]),
-                                importance = T,
-                                norm.votes = TRUE)
-
-        type <- "prob"
-
-        index <- 2
-
-      } else if (model == "max") {
-
-        fullMod <- dismo::maxent(x = envDat,
-                                 p = spDat$Presence,
-                                 a = spDat$PseudoAbsence)
-
-        type = NULL
-
-        index = NULL
-
-      }
-
-      pred <- predict(envDat, fullMod, type=type, index = index)
-
-      sp::plot(pred, col = matlab.like(30))
-
-      points(spDat$Presence, pch = "+", cex = 0.4)
-
-      ## evaluate model performance with k fold cross validation
-
       folds <- kfold(pres, k)
 
       abFolds <- kfold(ab, k)
@@ -338,42 +329,88 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath) {
 
         if (model == "lr") {
 
-          mod <- glm(val ~., data = train, family = binomial(link = "logit"))
+          assign(paste0("mod", i), glm(val ~., data = train, family = binomial(link = "logit")))
+
+          if (predict == TRUE) {
+
+            assign(paste0("pred", i), predict(envDat, get(paste0("mod", i)), type= "response"))
+
+          }
 
         } else if (model == "rf") {
 
-          mod <- randomForest(x = train[,2:ncol(train)],
-                              y = as.factor(train[,1]),
-                              importance = T,
-                              norm.votes = TRUE)
+          assign(paste0("mod", i), randomForest(x = train[,2:ncol(train)],
+                                                y = as.factor(train[,1]),
+                                                importance = T,
+                                                norm.votes = TRUE))
+
+          if (predict == TRUE) {
+
+            assign(paste0("pred", i), predict(envDat, get(paste0("mod", i)), type = "prob", index = 2))
+
+          }
 
         } else if (model == "max") {
 
-          mod <- dismo::maxent(x = envDat, p = trainPres, a = trainAb)
+          assign(paste0("mod", i), dismo::maxent(x = envDat, p = trainPres, a = trainAb))
+
+          if (predict == TRUE) {
+
+            assign(paste0("pred", i), predict(envDat, get(paste0("mod", i))))
+
+          }
 
         }
 
         if (model != "max") {
 
-          e[[i]] <- evaluate(p=test[test$val == 1,], a=test[test$val == 0,], mod,
+          e[[i]] <- evaluate(p=test[test$val == 1,], a=test[test$val == 0,], get(paste0("mod", i)),
                              tr = seq(0,1, length.out = 200))
 
         } else {
 
-          e[[i]] <- evaluate(p=testPres, a=testAb, x = envDat, mod,
+          e[[i]] <- evaluate(p=testPres, a=testAb, x = envDat, get(paste0("mod", i)),
                              tr = seq(0,1, length.out = 200))
 
         }
 
       }
 
-      auc <- mean(sapply( e, function(x){slot(x, "auc")} ))
+      AUC <- sapply( e, function(x){slot(x, "auc")} )
+
+      meanAUC <- mean(AUC)
+
+      if (predict == TRUE) {
+
+        pred <- stack(lapply(1:k,
+                             function(x) {get(paste0("pred", x))}))
+
+        meanPred <- mean(pred)
+
+      } else {
+
+        pred <- NULL
+
+        meanPred <- NULL
+
+      }
+
+      if (plot == TRUE) {
+
+        sp::plot(pred, main = paste("k =", i))
+
+        points(spDat$Presence, pch = "+")
+
+      }
+
+      mods <- lapply(1:k,
+                     function(x) {get(paste0("mod", x))})
 
       out <- NULL
 
-      out <- list(species, nRec, fullMod, auc, k, pred, allDat)
+      out <- list(species, nRec, k, mods, AUC, meanAUC, pred, meanPred, allDat)
 
-      names(out) <- c("Species", "Number of records", "Model","AUC","Number of folds for validation", "Predictions", "Data")
+      names(out) <- c("species", "nRecords", "nValidationFolds","modelObjects","AUCScores", "meanAUC", "predictions", "meanPrediction", "data")
 
       if (write == TRUE) {
 
@@ -395,31 +432,45 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath) {
 #'
 #' @param inPath String. Location of the fitSDM outputs.
 #' @param group String. Taxonomic group. Must partially match a filename in inPath.
+#' @param write Logical. Whether or not to write outputs to file.
+#' @param outPath String. Where to save outputs if write = TRUE.
+#' @param models String or character vector. Which models to include in skill assessment. Options are
+#'               "lr", "rf" and "max".
 #' @export
 #' @return
 #' A dataframe with columns for species and the skill of each type of model for that species.
 
-getSkill <- function(inPath, group) {
+getSkill <- function(inPath, group, write, outPath, models) {
+
+  print(group)
 
   allFiles <- list.files(paste0(inPath, "/", group, "/"), full.names = T, pattern = ".rdata")
 
-  rfFiles <- grep(pattern = "_rf", allFiles, value = T)
+  for (i in models) {
 
-  lrFiles <- grep(pattern = "_lr", allFiles, value = T)
+    assign(paste0(i, "Files"), grep(pattern = paste0("_", i), allFiles, value = T))
+
+  }
 
   getAUC <- function(file, mod) {
 
     load(file)
 
-    return(data.frame(group = group, species = out$Species, auc = out$AUC, model = mod))
+    return(data.frame(group = group, species = out$species, auc = out$meanAUC, model = mod))
 
   }
 
-  rf <- purrr::map_df(.x = rfFiles, .f = getAUC, mod = "rf")
+  skill <- lapply(models,
+                  function(x) { y <- purrr::map_df(.x = get(paste0(x, "Files")), .f = getAUC, mod = x)})
 
-  lr <- purrr::map_df(.x = lrFiles, .f = getAUC, mod = "lr")
+  skill <- do.call("rbind", skill)
 
-  skill <- rbind(rf, lr)
+  if (write == TRUE) {
+
+    write.csv(skill, paste0(outPath, group, ".csv"),
+              row.names = FALSE)
+
+  }
 
   return(skill)
 
@@ -434,44 +485,71 @@ getSkill <- function(inPath, group) {
 #' @param outPath String. Where to store ensemble models.
 #' @param skillDat. String. getSkill outputs for the chosen group.
 #' @param species String. Species name.
+#' @param models String or character vector. SDM algorithms to be included in model averaging. Options are
+#'               "lr" for logistic regression", "rf" for random forests and "max" for maxent.
+#' @param plot Logical. Whether or not to plot the predictions from each algorithm and the final ensemble.
 #' @export
 #' @return
 #' A raster layer with the AUC-weighted average probabilities of occurrence predicted by models.
 #'
 
-modelAverage <- function(inPath, outPath, skillDat, species) {
+modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE) {
 
   group <- skillDat$group[skillDat$species == species][1]
 
-  rfSkill <- skillDat$auc[skillDat$species == species & skillDat$model == "rf"]
+  print(c(species,group))
 
-  lrSkill <- skillDat$auc[skillDat$species == species & skillDat$model == "lr"]
+  l <- NULL
 
-  if (rfSkill >= 0.7 | lrSkill >= 0.7) {
+  for (i in models) {
 
-    load(paste0(inPath, group, "/", species, "_lr.rdata"))
+    assign(paste0(i, "Skill"), skillDat$auc[skillDat$species == species & skillDat$model == i])
 
-    lrRast <- out$Predictions
+    l <- c(l, get(paste0(i, "Skill")))
 
-    load(paste0(inPath, group, "/", species, "_rf.rdata"))
+  }
 
-    rfRast <- out$Predictions
+  if (length(l) == length(models) & any(l >= 0.5)) {
 
-    stack <- stack(rfRast, lrRast)
+    for (i in models) {
 
-    print(c(rfSkill, lrSkill))
+      load(paste0(inPath, group, "/", species, "_", i, ".rdata"))
 
-    if (rfSkill < 0.7) { rfSkill <- 0}
+      assign(paste0(i, "Rast"), out$meanPrediction)
 
-    if (lrSkill < 0.7) { lrSkill <- 0}
+      if (get(paste0(i, "Skill")) < 0.5) assign(paste0(i, "Skill"), 0)
 
-    print(c(rfSkill, lrSkill))
+    }
 
-    ensemble <- weighted.mean(x = stack, w = c(rfSkill, lrSkill))
+    stack <- stack(lapply(models,
+                          function(x) {get(paste0(x, "Rast"))}))
+
+
+    weights <- lapply(models,
+                      function(x) {get(paste0(x, "Skill"))})
+
+    weights <- do.call("c", weights)
+
+    ensemble <- weighted.mean(x = stack, w = weights)
+
+    if (plot == TRUE) {
+
+      par(mfrow=c(1, (length(models) +1)))
+
+      plot(stack)
+
+      plot(ensemble, main = "ensemble")
+
+    }
 
     raster::writeRaster(ensemble,
                         filename = paste0(outPath, "/", group, "/", species, "_ensemble"),
                         format = "ascii", overwrite = T)
+
+
+  } else {
+
+    return(species)
 
   }
 
@@ -485,17 +563,49 @@ modelAverage <- function(inPath, outPath, skillDat, species) {
 #' @param group String. Taxonomic group.
 #' @param write. Logical. Should the outputs be written to file?
 #' @param outPath String. Where to store the outputs if write = TRUE.
+#' @param species String or character vector. List of species to include in the stack. All species
+#'                not in this list will be excluded. Defaults to NULL in which case all species in group
+#'                are included.
 #' @export
 #' @return
 #' A raster layer with the AUC-weighted average probabilities of occurrence predicted by models.
 #'
 
-stackPreds <- function(inPath, group, write = TRUE, outPath) {
+stackPreds <- function(inPath, group, write = TRUE, outPath, species = NULL) {
+
+  names <- list.files(paste0(inPath, group, "/"),
+                      pattern = "ensemble")
+
+  names <- gsub("_ensemble.asc", "", names)
+
+  if (!is.null(species)) {
+
+    inds <- which(names %in% species)
+
+  } else {
+
+    inds <- 1:length(names)
+
+  }
+
+  if (length(inds) > 0) {
+
+    out <- data.frame(group = group,
+                      species = names[inds])
+
+  } else {
+
+    out <- NULL
+
+  }
+
 
   files <- list.files(paste0(inPath, group, "/"),
                       full.names = T,
                       recursive = T,
                       pattern = "ensemble")
+
+  files <- files[inds]
 
   getPreds <- function(file) {
 
@@ -503,17 +613,33 @@ stackPreds <- function(inPath, group, write = TRUE, outPath) {
 
   }
 
-  preds <- stack(lapply(X = files,
-                        FUN = getPreds))
-  spRich <- sum(preds)
+  if (length(files) > 0) {
 
-  if (write == TRUE) {
+    spRich <- stack(lapply(X = files,
+                           FUN = getPreds))
 
-    writeRaster(spRich, filename = paste0(outPath, group),
-                format = "ascii",
-                overwrite = T)
+    if (nlayers(spRich) > 1) {
+
+      spRich <- sum(spRich)
+
+    } else {
+
+      spRich <- spRich[[1]]
+
+    }
+
+
+    if (write == TRUE) {
+
+      writeRaster(spRich, filename = paste0(outPath, group),
+                  format = "ascii",
+                  overwrite = T)
+
+    }
 
   }
+
+  return(out)
 
 }
 
@@ -548,7 +674,9 @@ optOccThresh <- function(inPath, group, species, outPath, map, presAb) {
 
   file <- paste0(inPath, group, "/", species, "_ensemble.asc")
 
-  if (file.exists(file)) {
+  ind <- which(names(presAb) == species)
+
+  if (file.exists(file) & !is.null(presAb[[ind]])) {
 
     out <- raster::raster(file)
 
@@ -605,7 +733,7 @@ optOccThresh <- function(inPath, group, species, outPath, map, presAb) {
       binPred <- as.logical(binPred)
 
       writeRaster(binPred,
-                  paste0(outPath, species),
+                  paste0(outPath, species, "_binary"),
                   format = "ascii",
                   overwrite = T)
 
@@ -626,3 +754,4 @@ optOccThresh <- function(inPath, group, species, outPath, map, presAb) {
   return(sumStats)
 
 }
+
