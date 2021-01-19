@@ -26,7 +26,7 @@ if (!is.null(continent)) {
                 continent = continent,
                 taxonKey = taxon,
                 year = year,
-                limit = 200000)
+                limit = 199999)
 
 } else if (!is.null(country)) {
 
@@ -35,7 +35,7 @@ if (!is.null(continent)) {
                        country = country,
                        taxonKey = taxon,
                        year = year,
-                       limit = 200000)
+                       limit = 199999)
 } else {
 
   stop("Must specify one of country or continent")
@@ -58,10 +58,11 @@ if ("data.species" %in% names(dat)) {
                   dat$data.country, dat$data.continent,
                   dat$data.basisOfRecord, dat$data.datasetKey,
                   dat$data.coordinateUncertaintyInMeters,
-                  dat$data.bibliographicCitation)
+                  dat$data.bibliographicCitation,
+                  dat$data.country)
 
   colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
-                     "UUID", "spatialUncertainty", "ref")
+                     "UUID", "spatialUncertainty", "ref", "country")
 
   if (length(dat[,1]) == 200000) {
     warning("Reached max number of outputs, but more data is available.")
