@@ -56,7 +56,7 @@ if ("data.species" %in% names(dat)) {
                   dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
                   dat$data.country, dat$data.continent,
                   dat$data.basisOfRecord, dat$data.occurrenceID,
-                  data.coordinatePrecision, data.bibliographicCitation)
+                  dat$data.coordinatePrecision, dat$data.bibliographicCitation)
 
   colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
                      "occID", "coordPrecision", "ref")
