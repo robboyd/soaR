@@ -46,6 +46,7 @@ if (!is.null(continent)) {
 
 dat <- data.frame(x[2])
 
+print(names(dat))
 ## check whether there are any records
 
 if ("data.species" %in% names(dat)) {
@@ -55,11 +56,12 @@ if ("data.species" %in% names(dat)) {
   dat <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
                   dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
                   dat$data.country, dat$data.continent,
-                  dat$data.basisOfRecord, dat$data.occurrenceID,
-                  dat$data.coordinatePrecision, dat$data.bibliographicCitation)
+                  dat$data.basisOfRecord, dat$data.datasetKey,
+                  dat$data.coordinateUncertaintyInMeters,
+                  dat$data.bibliographicCitation)
 
   colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
-                     "occID", "coordPrecision", "ref")
+                     "UUID", "spatialUncertainty", "ref")
 
   if (length(dat[,1]) == 200000) {
     warning("Reached max number of outputs, but more data is available.")
@@ -82,7 +84,7 @@ if ("data.species" %in% names(dat)) {
   warning("This query produced zero records")
 }
 
-if (write_output == TRUE) {
+if (write == TRUE) {
 
   save(dat, file=paste0(outPath, outName,
                    "_GBIF_data.rdata"))
