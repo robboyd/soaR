@@ -5,13 +5,13 @@
 #' @param country string. E.g. "BR" for Brasil, "AR" for Argentina, and "CL" for Chile
 #' @param year string. year(s) for which to extract data. For a range, format as e.g. "1995,2010". For a single year, as e.g. "2005".
 #' @param taxon numeric. GBIF taxonomic key.
-#' @param write_output logical
-#' @param output_path string. Directory in which to save outputs.
-#' @param output_name string. Name of file to be saved if write_output = TRUE.
+#' @param write logical
+#' @param outPath string. Directory in which to save outputs.
+#' @param outName string. Name of file to be saved if write_output = TRUE.
 #' @export
 #' @examples
 
-extract_records <- function(continent = NULL, country = NULL, year, taxon, write_output, output_path, output_name) {
+extract_records <- function(continent = NULL, country = NULL, year, taxon, write, outPath, outName) {
 
   if (!is.null(continent) & !is.null(country)) {
 
@@ -55,10 +55,11 @@ if ("data.species" %in% names(dat)) {
   dat <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
                   dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
                   dat$data.country, dat$data.continent,
-                  dat$data.basisOfRecord, dat$data.occurrenceID)
+                  dat$data.basisOfRecord, dat$data.occurrenceID,
+                  data.coordinatePrecision, data.bibliographicCitation)
 
   colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
-                     "occID")
+                     "occID", "coordPrecision", "ref")
 
   if (length(dat[,1]) == 200000) {
     warning("Reached max number of outputs, but more data is available.")
@@ -83,8 +84,8 @@ if ("data.species" %in% names(dat)) {
 
 if (write_output == TRUE) {
 
-  save(dat, file=paste0(output_path, output_name,
-                   "_raw_data.rdata"))
+  save(dat, file=paste0(outPath, outName,
+                   "_GBIF_data.rdata"))
 
 }
 
