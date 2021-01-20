@@ -12,37 +12,30 @@
 #' @export
 #' @examples
 
-extract_records <- function(continent = NULL,
-                            country = NULL,
-                            year,
-                            taxon,
-                            write,
-                            outPath,
-                            outName,
-                            degrade = FALSE) {
+extract_records <- function(roster) {
 
-  if (!is.null(continent) & !is.null(country)) {
+  if (!is.null(roster$continent) & !is.null(roster$country)) {
 
     stop("Can't specify both country and continent")
 
   }
 
-if (!is.null(continent)) {
+if (!is.null(roster$continent)) {
 
   x <- rgbif::occ_data(hasCoordinate = T,
                 hasGeospatialIssue = F,
-                continent = continent,
-                taxonKey = taxon,
-                year = year,
+                continent = roster$continent,
+                taxonKey = roster$taxa,
+                year = roster$year,
                 limit = 199999)
 
-} else if (!is.null(country)) {
+} else if (!is.null(roster$country)) {
 
   x <- rgbif::occ_data(hasCoordinate = T,
                        hasGeospatialIssue = F,
-                       country = country,
-                       taxonKey = taxon,
-                       year = year,
+                       country = roster$country,
+                       taxonKey = roster$taxa,
+                       year = roster$year,
                        limit = 199999)
 } else {
 
@@ -71,7 +64,7 @@ if ("data.species" %in% names(dat)) {
   colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
                      "UUID", "spatialUncertainty", "ref", "country")
 
-  if (length(dat[,1]) == 200000) {
+  if (length(dat[,1]) == 199000) {
     warning("Reached max number of outputs, but more data is available.")
   }
 
@@ -79,7 +72,7 @@ if ("data.species" %in% names(dat)) {
 
   dat <- dat[!is.na(dat$species),]
 
-  if (degrade == TRUE) {
+  if (roster$degrade == TRUE) {
 
     if (any(duplicated(dat))) {
       dat <- dat[-which(duplicated(dat)), ]
@@ -99,14 +92,20 @@ if ("data.species" %in% names(dat)) {
   warning("This query produced zero records")
 }
 
-if (write == TRUE) {
+if (roster$write == TRUE) {
 
-  save(dat, file=paste0(outPath, outName,
-                   "_GBIF_data.rdata"))
+  write.csv(dat,
+            paste0(roster$outPath, roster$outName,
+                   "_", roster$country, ".rdata"))
 
 }
 
-return (dat)
+if (roster$write = FALSE) {
+
+  return (dat)
+
+}
+
 
 }
 
