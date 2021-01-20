@@ -8,10 +8,18 @@
 #' @param write logical
 #' @param outPath string. Directory in which to save outputs.
 #' @param outName string. Name of file to be saved if write_output = TRUE.
+#' @param degrade logical. Whether or not to remove duplicates from the data (which may be repeat visits).
 #' @export
 #' @examples
 
-extract_records <- function(continent = NULL, country = NULL, year, taxon, write, outPath, outName) {
+extract_records <- function(continent = NULL,
+                            country = NULL,
+                            year,
+                            taxon,
+                            write,
+                            outPath,
+                            outName,
+                            degrade = FALSE) {
 
   if (!is.null(continent) & !is.null(country)) {
 
@@ -46,7 +54,6 @@ if (!is.null(continent)) {
 
 dat <- data.frame(x[2])
 
-print(names(dat))
 ## check whether there are any records
 
 if ("data.species" %in% names(dat)) {
@@ -68,11 +75,18 @@ if ("data.species" %in% names(dat)) {
     warning("Reached max number of outputs, but more data is available.")
   }
 
+  ## remove recods not identified to species level
+
   dat <- dat[!is.na(dat$species),]
 
-  if (any(duplicated(dat))) {
-    dat <- dat[-which(duplicated(dat)), ]
+  if (degrade == TRUE) {
+
+    if (any(duplicated(dat))) {
+      dat <- dat[-which(duplicated(dat)), ]
+    }
+
   }
+
 
  nSpec <- length(unique(dat$species))
  nRec <- length(dat[,1])
