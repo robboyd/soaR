@@ -14,26 +14,26 @@
 
 extract_records <- function(roster) {
 
-  if (!is.null(roster$continent) & !is.null(roster$country)) {
+  if (!is.na(roster$continent) & !is.na(roster$country)) {
 
     stop("Can't specify both country and continent")
 
   }
 
-if (!is.null(roster$continent)) {
+if (!is.na(roster$continent)) {
 
   x <- rgbif::occ_data(hasCoordinate = T,
                 hasGeospatialIssue = F,
-                continent = roster$continent,
+                continent = as.character(roster$continent),
                 taxonKey = roster$taxa,
                 year = roster$year,
                 limit = 199999)
 
-} else if (!is.null(roster$country)) {
+} else if (!is.na(roster$country)) {
 
   x <- rgbif::occ_data(hasCoordinate = T,
                        hasGeospatialIssue = F,
-                       country = roster$country,
+                       country = as.character(roster$country),
                        taxonKey = roster$taxa,
                        year = roster$year,
                        limit = 199999)
@@ -96,16 +96,17 @@ if (roster$write == TRUE) {
 
   write.csv(dat,
             paste0(roster$outPath, roster$outName,
-                   "_", roster$country, ".rdata"))
+                   "_", roster$country, ".csv"))
 
 }
 
-if (roster$write = FALSE) {
+if (roster$write == FALSE) {
 
   return (dat)
 
 }
 
+print(paste("Extraction completed for", outName, "in", country))
 
 }
 
