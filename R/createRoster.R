@@ -5,7 +5,8 @@
 #'
 #' @param index Numeric. Element number (i.e. 1: number of calls to extract_records).
 #' @param continent String or character vector. E.g. "south_america", "europe". Do not specify unless country is NULL.
-#' @param country string or character vector. E.g. "BR" for Brasil, "AR" for Argentina, and "CL" for Chile
+#' @param country string or character vector. ISO codes, e.g. "BR" for Brasil, "AR" for Argentina, and "CL" for Chile.
+#'                See https://www.iban.com/country-codes.
 #' @param year string or character vector. year(s) for which to extract data. For a range, format as e.g. "1995,2010". For a single year, as e.g. "2005".
 #' @param taxa numeric or numeric vector. GBIF taxonomic key(s).
 #' @param write logical. If true writes outputs to .csv in outPath
@@ -14,6 +15,16 @@
 #' @param degrade logical. Whether or not to remove duplicates from the data (which may be repeat visits).
 #' @export
 #' @examples
+#' roster <- createRoster(index = 1:12,
+#' taxa = 811,
+#' country = c("CL", "BR", "AR", "BO", "CO", "EC", "GY", "PY", "PE", "SR", "UY", "VE"),
+#' continent = NA,
+#' write = TRUE,
+#' outName = "Diptera",
+#' outPath = "C:/Users/Rob.Lenovo-PC/Documents/surpass/Data/GBIF/20.01.21/",
+#' degrade = FALSE,
+#' year = "1950, 2019")
+
 
 createRoster <- function(index,
                          taxa,
