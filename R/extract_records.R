@@ -53,16 +53,26 @@ if ("data.species" %in% names(dat)) {
 
 ## if there are create a data frame with variables of interest
 
-  dat <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
+  out <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
                   dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
                   dat$data.country, dat$data.continent,
                   dat$data.basisOfRecord, dat$data.datasetKey,
                   dat$data.coordinateUncertaintyInMeters,
-                  dat$data.bibliographicCitation,
                   dat$data.country)
 
-  colnames(dat) <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
-                     "UUID", "spatialUncertainty", "ref", "country")
+  names <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
+                "UUID", "spatialUncertainty", "country", "ref")
+
+  if ("data.bibliographicCitation" %in% names(dat)) {
+
+    out$ref <- dat$data.bibliographicCitation
+
+    colnames(out) <- names
+
+  } else {
+
+    colnames(out) <- names[1:(length(names) - 1)]
+  }
 
   if (length(dat[,1]) == 199000) {
     warning("Reached max number of outputs, but more data is available.")
@@ -70,31 +80,31 @@ if ("data.species" %in% names(dat)) {
 
   ## remove recods not identified to species level
 
-  dat <- dat[!is.na(dat$species),]
+  out <- out[!is.na(out$species),]
 
   if (roster$degrade == TRUE) {
 
-    if (any(duplicated(dat))) {
-      dat <- dat[-which(duplicated(dat)), ]
+    if (any(duplicated(out))) {
+      out <- out[-which(duplicated(out)), ]
     }
 
   }
 
 
- nSpec <- length(unique(dat$species))
- nRec <- length(dat[,1])
+ nSpec <- length(unique(out$species))
+ nRec <- length(out[,1])
 
  attr(dat, "nSpec") <- as.numeric(nSpec)
  attr(dat, "nRec") <- as.numeric(nRec)
 
 } else {
-  dat <- 0
+  out <- 0
   warning("This query produced zero records")
 }
 
 if (roster$write == TRUE) {
 
-  write.csv(dat,
+  write.csv(out,
             paste0(roster$outPath, roster$outName,
                    "_", roster$country, ".csv"))
 
@@ -102,7 +112,7 @@ if (roster$write == TRUE) {
 
 if (roster$write == FALSE) {
 
-  return (dat)
+  return (out)
 
 }
 
