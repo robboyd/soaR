@@ -106,7 +106,7 @@ if (roster$write == FALSE) {
 
 }
 
-print(paste("Extraction completed for", outName, "in", country))
+print(paste("Extraction completed for", roster$outName, "in", roster$country))
 
 }
 
