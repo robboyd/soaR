@@ -20,103 +20,117 @@ extract_records <- function(roster) {
 
   }
 
-if (!is.na(roster$continent)) {
+  nrecs <- rgbif::occ_count(taxonKey = roster$taxa,
+                            georeferenced = TRUE,
+                            country = roster$country,
+                            year = roster$year,
+                            type = "count",
+                            publishingCountry = NULL)
 
-  x <- rgbif::occ_data(hasCoordinate = T,
-                hasGeospatialIssue = F,
-                continent = as.character(roster$continent),
-                taxonKey = roster$taxa,
-                year = roster$year,
-                limit = 199999)
+  if (nrecs <= 100000) {
 
-} else if (!is.na(roster$country)) {
+    if (!is.na(roster$continent)) {
 
-  x <- rgbif::occ_data(hasCoordinate = T,
-                       hasGeospatialIssue = F,
-                       country = as.character(roster$country),
-                       taxonKey = roster$taxa,
-                       year = roster$year,
-                       limit = 199999)
-} else {
+      x <- rgbif::occ_data(hasCoordinate = T,
+                           hasGeospatialIssue = F,
+                           continent = as.character(roster$continent),
+                           taxonKey = roster$taxa,
+                           year = roster$year,
+                           limit = 99999)
 
-  stop("Must specify one of country or continent")
+    } else if (!is.na(roster$country)) {
 
-}
+      x <- rgbif::occ_data(hasCoordinate = T,
+                           hasGeospatialIssue = F,
+                           country = as.character(roster$country),
+                           taxonKey = roster$taxa,
+                           year = roster$year,
+                           limit = 99999)
+    } else {
 
-## take the second element which is the "data" as opposed to the metadata
+      stop("Must specify one of country or continent")
 
-dat <- data.frame(x[2])
+    }
 
-## check whether there are any records
+    ## take the second element which is the "data" as opposed to the metadata
 
-if ("data.species" %in% names(dat)) {
+    dat <- data.frame(x[2])
 
-## if there are create a data frame with variables of interest
+    ## check whether there are any records
 
-  out <- data.frame(dat$data.species, dat$data.scientificName, dat$data.decimalLongitude,
-                  dat$data.decimalLatitude, dat$data.year, dat$data.eventDate, dat$data.verbatimEventDate,
-                  dat$data.country, dat$data.continent,
-                  dat$data.basisOfRecord, dat$data.datasetKey,
-                  dat$data.coordinateUncertaintyInMeters,
-                  dat$data.country)
+    if ("data.species" %in% names(dat)) {
 
-  names <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
-                "UUID", "spatialUncertainty", "country", "ref")
+      ## if there are create a data frame with variables of interest
 
-  if ("data.bibliographicCitation" %in% names(dat)) {
+      fields <- c("data.species", "data.scientificName", "data.decimalLongitude",
+                        "data.decimalLatitude", "data.year", "data.eventDate", "data.verbatimEventDate",
+                        "data.country", "data.continent",
+                        "data.basisOfRecord", "data.datasetKey",
+                        "data.coordinateUncertaintyInMeters",
+                        "data.country", "data.bibliographicCitation")
 
-    out$ref <- dat$data.bibliographicCitation
+      names <- c("species","group","lon","lat","year", "Date", "originalDate", "country","continent","basisOfRecord",
+                 "UUID", "spatialUncertainty", "country", "ref")
 
-    colnames(out) <- names
+      keep <- which(fields %in% colnames(dat))
+
+      out <- dat[, fields[keep]]
+
+      colnames(out) <- names[keep]
+
+      if (length(dat[,1]) == 199000) {
+        warning("Reached max number of outputs, but more data is available.")
+      }
+
+      ## remove recods not identified to species level
+
+      #out <- out[!is.na(out$species),]
+
+      out$identifier <- identifier
+
+      if (roster$degrade == TRUE) {
+
+        if (any(duplicated(out))) {
+          out <- out[-which(duplicated(out)), ]
+        }
+
+      }
+
+
+      nSpec <- length(unique(out$species))
+      nRec <- length(out[,1])
+
+      attr(dat, "nSpec") <- as.numeric(nSpec)
+      attr(dat, "nRec") <- as.numeric(nRec)
+
+    } else {
+      out <- 0
+      warning("This query produced zero records")
+    }
+
+    if (roster$write == TRUE) {
+
+      write.csv(out,
+                paste0(roster$outPath, roster$outName,
+                       "_", roster$country, ".csv"),
+                row.names = F)
+
+    }
+
+    if (roster$write == FALSE) {
+
+      return (out)
+
+    }
+
+    print(paste("Extraction completed for", roster$outName, "in", roster$country))
 
   } else {
 
-    colnames(out) <- names[1:(length(names) - 1)]
-  }
-
-  if (length(dat[,1]) == 199000) {
-    warning("Reached max number of outputs, but more data is available.")
-  }
-
-  ## remove recods not identified to species level
-
-  out <- out[!is.na(out$species),]
-
-  if (roster$degrade == TRUE) {
-
-    if (any(duplicated(out))) {
-      out <- out[-which(duplicated(out)), ]
-    }
+    warning(paste0("There are more than 100,000 records for", roster$outName, "in", roster$country))
 
   }
 
-
- nSpec <- length(unique(out$species))
- nRec <- length(out[,1])
-
- attr(dat, "nSpec") <- as.numeric(nSpec)
- attr(dat, "nRec") <- as.numeric(nRec)
-
-} else {
-  out <- 0
-  warning("This query produced zero records")
 }
 
-if (roster$write == TRUE) {
-
-  write.csv(out,
-            paste0(roster$outPath, roster$outName,
-                   "_", roster$country, ".csv"))
-
-}
-
-if (roster$write == FALSE) {
-
-  return (out)
-
-}
-
-print(paste("Extraction completed for", roster$outName, "in", roster$country))
-
-}
 
