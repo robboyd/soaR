@@ -111,7 +111,7 @@ extract_records <- function(roster) {
     if (roster$write == TRUE) {
 
       write.csv(out,
-                paste0(roster$outPath, roster$outName,
+                paste0(roster$outPath, roster$identifier,
                        "_", roster$country, ".csv"),
                 row.names = F)
 
