@@ -86,7 +86,7 @@ extract_records <- function(roster) {
 
       #out <- out[!is.na(out$species),]
 
-      out$identifier <- identifier
+      out$identifier <- roster$identifier
 
       if (roster$degrade == TRUE) {
 
