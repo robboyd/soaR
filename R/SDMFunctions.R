@@ -197,13 +197,18 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 
     if (!is.null(screenRaster)) {
 
-      presDrop <- raster::extract(screenRaster, out$Presence)
+      for (i in 1:nlayers(screenRaster)) {
 
-      abDrop <- raster::extract(screenRaster, out$pseudoAbsence)
+        presDrop <- raster::extract(screenRaster[[i]], out$Presence)
 
-      if (any(is.na(presDrop))) out$Presence <- out$Presence[-which(is.na(presDrop)), ]
+        abDrop <- raster::extract(screenRaster[[i]], out$pseudoAbsence)
 
-      if (any(is.na(abDrop))) out$pseudoAbsence <- out$pseudoAbsence[-which(is.na(abDrop)), ]
+        if (any(is.na(presDrop))) out$Presence <- out$Presence[-which(is.na(presDrop)), ]
+
+        if (any(is.na(abDrop))) out$pseudoAbsence <- out$pseudoAbsence[-which(is.na(abDrop)), ]
+
+      }
+
 
       if (nrow(out$Presence) > nrow(out$pseudoAbsence)) {
 
@@ -249,11 +254,23 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 
 fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict = TRUE, plot = TRUE) {
 
-  print(species)
+  if (predict == FALSE & model == "lrReg") warning("When model = lrReg and predict = TRUE, fit SDM will return k AUC scores and a mean based on those scores.
+  However, in some cases lrReg reduces all covariates to zero producing an intercept-only model (ie. the mean).
+  These models introduce substantial noise and we recommend they are dropped at a later stage.")
+
+  print(paste("species:", species))
 
   ind <- which(names(spDat) == species)
 
   spDat <- spDat[[ind]]
+
+  ## covariates needed in matrix format to predict using lrReg
+
+  if (model == "lrReg" & predict == TRUE) {
+
+    covsMat <- as.matrix(rasterToPoints(covs))
+
+  }
 
   if (is.null(spDat)) {
 
@@ -277,7 +294,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
     nRec <- nrow(pres)
 
-    print(nRec)
+    print(paste("Occurrence records:", nRec))
 
     if (nRec < k) {
 
@@ -360,9 +377,46 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
           }
 
+        } else if (model == "lrReg") {
+
+          assign(paste0("mod", i), glmnet::cv.glmnet(x = as.matrix(train[, 2:ncol(train)]),
+                                                     y = train[, 1],
+                                                     family = "binomial",
+                                                     nfolds = 3))
+
+          if (predict == TRUE) {
+
+            pred <- predict(get(paste0("mod", i)), covsMat[, 3:ncol(covsMat)], type = "response")
+
+            pred <- as.matrix(cbind(covsMat[, 1:2], pred))
+
+            if (any(is.na(pred[, 3]))) pred <- pred[-which(is.na(pred[,3])), ]
+
+            assign(paste0("pred", i), rasterize(pred[, 1:2], covs[[1]], field = pred[, 3]))
+
+          }
+
         }
 
-        if (model != "max") {
+        ## extract AUC
+
+        if (model == "lrReg") {
+
+          ## extract predictions for test data
+
+          coords <- rbind(spDat$Presence, spDat$pseudoAbsence)
+
+          coords <- coords[allFolds == i, ]
+
+          preds <- extract(get(paste0("pred", i)), coords)
+
+          DATA <- data.frame(index = 1:length(preds),
+                             obs = test$val,
+                             pred = preds)
+
+          e[[i]] <- auc(DATA, st.dev = F)
+
+        } else if (model != "max") {
 
           e[[i]] <- evaluate(p=test[test$val == 1,], a=test[test$val == 0,], get(paste0("mod", i)),
                              tr = seq(0,1, length.out = 200))
@@ -376,7 +430,15 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
       }
 
-      AUC <- sapply( e, function(x){slot(x, "auc")} )
+      if (model != "lrReg") {
+
+        AUC <- sapply( e, function(x){slot(x, "auc")} )
+
+      } else {
+
+        AUC <- unlist(e)
+
+      }
 
       meanAUC <- mean(AUC)
 
@@ -385,7 +447,51 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
         pred <- stack(lapply(1:k,
                              function(x) {get(paste0("pred", x))}))
 
-        meanPred <- mean(pred)
+        ## for lrReg models all coefficients may be reduced to zero giving an intercept-only model which predicts 0.5 everywhere
+        ## the below drops intercept-only models because they add needless noise to the predictions
+
+        if (model == "lrReg") {
+
+          uniqueVals <-lapply(1:k,
+                              function(x) { length(cellStats(pred[[x]], unique))})
+
+          drop <- which(uniqueVals <= 2) ## i.e. the mean and NA
+
+          if (length(drop) == k) {
+
+            print("No non-intercept models; lrReg will be omitted for this species")
+
+          }
+
+          if (any(drop)) {
+
+            AUC[drop] <- NA
+
+            print(paste("Dropping", length(drop), "intercept-only model(s). Intercept-only models are given an AUC value of NA so they can be identified.
+                        Where 1:(k-1) models are intercept only, only the non-intercept models are included in the final average. Where all models are intercept-only,
+                        their predictions are returned but should not be used. modelAverage() will ignore intercept-only models"))
+
+          }
+
+        } else { drop <- NULL}
+
+        if (length(drop) == k | length(drop) == 0) {
+
+          meanPred <- mean(pred) # where all models are intercept-only, takes the mean to avoid errors later but AUC scores are NA which means they are dropped for final ensembles
+
+        } else {
+
+          meanPred <- mean(pred[[-drop]])
+
+        }
+
+        print("k fold AUC scores:")
+
+        print(AUC)
+
+        meanAUC <- mean(AUC, na.rm = T)
+
+        print(paste("mean AUC:", meanAUC))
 
       } else {
 
@@ -397,9 +503,9 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
       if (plot == TRUE) {
 
-        sp::plot(pred, main = paste("k =", i))
+        sp::plot(pred)
 
-        points(spDat$Presence, pch = "+")
+        #points(spDat$Presence, pch = "+")
 
       }
 
@@ -407,6 +513,8 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
                      function(x) {get(paste0("mod", x))})
 
       out <- NULL
+
+      if (model == "lrReg" & predict == TRUE) k <- k - length(drop) ## if some models were intercept-only then recalculate k (number of models used)
 
       out <- list(species, nRec, k, mods, AUC, meanAUC, pred, meanPred, allDat)
 
@@ -488,16 +596,19 @@ getSkill <- function(inPath, group, write, outPath, models) {
 #' @param models String or character vector. SDM algorithms to be included in model averaging. Options are
 #'               "lr" for logistic regression", "rf" for random forests and "max" for maxent.
 #' @param plot Logical. Whether or not to plot the predictions from each algorithm and the final ensemble.
+#' @param skillThresh Numeric. Algorithms with AUC scores below this value are dropped from the ensemble.
 #' @export
 #' @return
 #' A raster layer with the AUC-weighted average probabilities of occurrence predicted by models.
 #'
 
-modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE) {
+modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE, skillThresh) {
 
   group <- skillDat$group[skillDat$species == species][1]
 
-  print(c(species,group))
+  print(paste("group:", as.character(group)))
+
+  print(paste("species:", as.character(species)))
 
   l <- NULL
 
@@ -509,15 +620,19 @@ modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE
 
   }
 
-  if (length(l) == length(models) & any(l >= 0.5)) {
+  if (length(l) == length(models) & length(l[which(l > skillThresh)]) > 0) {
 
     for (i in models) {
+
+      print(paste(i, "AUC =", get(paste0(i, "Skill"))))
 
       load(paste0(inPath, group, "/", species, "_", i, ".rdata"))
 
       assign(paste0(i, "Rast"), out$meanPrediction)
 
-      if (get(paste0(i, "Skill")) < 0.5) assign(paste0(i, "Skill"), 0)
+      ## drop models with AUC a threshold or NA. If NA it means that only intercept-only models were produced by lrReg
+
+      if (get(paste0(i, "Skill")) <= skillThresh | is.na(get(paste0(i, "Skill")))) assign(paste0(i, "Skill"), 0)
 
     }
 
@@ -529,6 +644,8 @@ modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE
                       function(x) {get(paste0(x, "Skill"))})
 
     weights <- do.call("c", weights)
+
+    print(paste("Model weights:", weights))
 
     ensemble <- weighted.mean(x = stack, w = weights)
 
@@ -548,6 +665,8 @@ modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE
 
 
   } else {
+
+    if (length(l) != length(models)) warning("All models not fitted for this species")
 
     return(species)
 
