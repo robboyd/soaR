@@ -166,6 +166,7 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 {
   dat <- dat[dat$year >= minYear & dat$year <= maxYear, ]
   pres <- dat[dat$species == species, c("eastings", "northings")]
+
   if (nrow(pres) < recThresh) {
     warning("Number of records does not exceed recThresh")
     out <- NULL
@@ -173,10 +174,14 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
   else {
     ab <- dat[dat$species != species, c("eastings",
                                         "northings")]
+
     if (nrow(ab) > 7e+05) {
       ab <- ab[sample(1:nrow(ab), 7e+05), ]
     }
+
     ab <- ab[!ab %in% pres]
+
+    possibleAb <- nrow(ab)
 
     if (nrow(ab) < nrow(pres)) {
       warning("More presences than possible locations for absences. Consider lowering the number of pseudo absences.")
@@ -184,11 +189,19 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
     if (matchPres == TRUE) {
       sampInd <- sample(1:nrow(ab), nrow(pres))
     } else {
-      sampInd <- sample(1:nrow(ab), nAbs)
+      if (nAbs <= nrow(ab)) {
+        sampInd <- sample(1:nrow(ab), nAbs)
+      } else {
+        warning(paste0("Fewer than 10,000 locations available for pseudo absences when using the target group approach. Setting nAbs to the maximum number possible (", nrow(ab), ")."))
+        sampInd <- 1:nrow(ab)
+      }
+
     }
 
     ab <- ab[sampInd, ]
+
     out <- list(pres, ab)
+
     names(out) <- c("Presence", "pseudoAbsence")
 
     ## if screenRaster is specified, check if any presence or absence points fall outside of the raster extent (i.e. they are NA).
@@ -209,14 +222,17 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 
       }
 
+      if (matchPres == TRUE) {
 
-      if (nrow(out$Presence) > nrow(out$pseudoAbsence)) {
+        if (nrow(out$Presence) > nrow(out$pseudoAbsence)) {
 
-        out$Presence <- out$Presence[1:nrow(out$pseudoAbsence), ]
+          out$Presence <- out$Presence[1:nrow(out$pseudoAbsence), ]
 
-      } else if (nrow(out$Presence) < nrow(out$pseudoAbsence)) {
+        } else if (nrow(out$Presence) < nrow(out$pseudoAbsence)) {
 
-        out$pseudoAbsence <- out$pseudoAbsence[1:nrow(out$Presence), ]
+          out$pseudoAbsence <- out$pseudoAbsence[1:nrow(out$Presence), ]
+
+        }
 
       }
 
@@ -227,6 +243,7 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
   return(out)
 
 }
+
 
 
 
