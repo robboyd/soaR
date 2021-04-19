@@ -331,6 +331,22 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
       }
 
+      ## set weights for logistic regression if prevalence is not 0.5
+
+      if (model != "lrReg" & nRec != nrow(ab)) { warning("Prevalence is not 0.5 and no weights are applied to account for this. Currently weights are only applied where model = lrReg.")}
+
+      if (model == "lrReg" & nRec != nrow(ab)) {
+
+        print("Prevalence is not 0.5. Weighting absences to simulate a prevalence of 0.5")
+
+        nAb <- nrow(ab)
+
+        prop <- nRec / nAb
+
+        print(paste("Absence weighting:", prop))
+
+      }
+
       allDat <- rbind(pres, ab)
 
       folds <- kfold(pres, k)
@@ -346,6 +362,8 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
         if (model != "max") {
 
           train <- allDat[allFolds != i,]
+
+          if (model == "lrReg" & nRec != nrow(ab)) weights <- c(rep(1, length(train$val[train$val == 1])), rep(prop, length(train$val[train$val == 0])))
 
           test <- allDat[allFolds == i,]
 
@@ -399,7 +417,8 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
           assign(paste0("mod", i), glmnet::cv.glmnet(x = as.matrix(train[, 2:ncol(train)]),
                                                      y = train[, 1],
                                                      family = "binomial",
-                                                     nfolds = 3))
+                                                     nfolds = 3,
+                                                     weights = weights))
 
           if (predict == TRUE) {
 
@@ -548,7 +567,6 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
   }
 
 }
-
 
 
 #' Extract skill of SDMs.
