@@ -285,7 +285,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
   if (model == "lrReg" & predict == TRUE) {
 
-    covsMat <- as.matrix(rasterToPoints(covs))
+    covsMat <- as.matrix(raster::rasterToPoints(covs))
 
   }
 
@@ -295,7 +295,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
   } else {
 
-    pres <- data.frame(val = 1, extract(x = envDat, y = spDat$Presence))
+    pres <- data.frame(val = 1, raster::extract(x = envDat, y = spDat$Presence))
 
     if (any(is.na(pres$X_Precipitation.of.Driest.Month))) {
 
@@ -349,9 +349,9 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
       allDat <- rbind(pres, ab)
 
-      folds <- kfold(pres, k)
+      folds <- dismo::kfold(pres, k)
 
-      abFolds <- kfold(ab, k)
+      abFolds <- dismo::kfold(ab, k)
 
       allFolds <- c(folds, abFolds)
 
@@ -391,7 +391,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
         } else if (model == "rf") {
 
-          assign(paste0("mod", i), randomForest(x = train[,2:ncol(train)],
+          assign(paste0("mod", i), randomForest::randomForest(x = train[,2:ncol(train)],
                                                 y = as.factor(train[,1]),
                                                 importance = T,
                                                 norm.votes = TRUE))
@@ -428,7 +428,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
             if (any(is.na(pred[, 3]))) pred <- pred[-which(is.na(pred[,3])), ]
 
-            assign(paste0("pred", i), rasterize(pred[, 1:2], covs[[1]], field = pred[, 3]))
+            assign(paste0("pred", i), raster::rasterize(pred[, 1:2], covs[[1]], field = pred[, 3]))
 
           }
 
@@ -444,22 +444,22 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
           coords <- coords[allFolds == i, ]
 
-          preds <- extract(get(paste0("pred", i)), coords)
+          preds <- raster::extract(get(paste0("pred", i)), coords)
 
           DATA <- data.frame(index = 1:length(preds),
                              obs = test$val,
                              pred = preds)
 
-          e[[i]] <- auc(DATA, st.dev = F)
+          e[[i]] <- PresenceAbsence::auc(DATA, st.dev = F)
 
         } else if (model != "max") {
 
-          e[[i]] <- evaluate(p=test[test$val == 1,], a=test[test$val == 0,], get(paste0("mod", i)),
+          e[[i]] <- dismo::evaluate(p=test[test$val == 1,], a=test[test$val == 0,], get(paste0("mod", i)),
                              tr = seq(0,1, length.out = 200))
 
         } else {
 
-          e[[i]] <- evaluate(p=testPres, a=testAb, x = envDat, get(paste0("mod", i)),
+          e[[i]] <- dismo::evaluate(p=testPres, a=testAb, x = envDat, get(paste0("mod", i)),
                              tr = seq(0,1, length.out = 200))
 
         }
@@ -480,7 +480,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
       if (predict == TRUE) {
 
-        pred <- stack(lapply(1:k,
+        pred <- raster::stack(lapply(1:k,
                              function(x) {get(paste0("pred", x))}))
 
         ## for lrReg models all coefficients may be reduced to zero giving an intercept-only model which predicts 0.5 everywhere
@@ -489,7 +489,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
         if (model == "lrReg") {
 
           uniqueVals <-lapply(1:k,
-                              function(x) { length(cellStats(pred[[x]], unique))})
+                              function(x) { length(raster::cellStats(pred[[x]], unique))})
 
           drop <- which(uniqueVals <= 2) ## i.e. the mean and NA
 
@@ -671,7 +671,7 @@ modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE
 
     }
 
-    stack <- stack(lapply(models,
+    stack <- raster::stack(lapply(models,
                           function(x) {get(paste0(x, "Rast"))}))
 
 
@@ -688,9 +688,9 @@ modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE
 
       par(mfrow=c(1, (length(models) +1)))
 
-      plot(stack)
+      sp::plot(stack)
 
-      plot(ensemble, main = "ensemble")
+      sp::plot(ensemble, main = "ensemble")
 
     }
 
@@ -763,13 +763,13 @@ stackPreds <- function(inPath, group, write = TRUE, outPath, species = NULL) {
 
   getPreds <- function(file) {
 
-    raster(file)
+    raster::raster(file)
 
   }
 
   if (length(files) > 0) {
 
-    spRich <- stack(lapply(X = files,
+    spRich <- raster::stack(lapply(X = files,
                            FUN = getPreds))
 
     if (nlayers(spRich) > 1) {
@@ -886,7 +886,7 @@ optOccThresh <- function(inPath, group, species, outPath, map, presAb) {
 
       binPred <- as.logical(binPred)
 
-      writeRaster(binPred,
+      raster::writeRaster(binPred,
                   paste0(outPath, species, "_binary"),
                   format = "ascii",
                   overwrite = T)
