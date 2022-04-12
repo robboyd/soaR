@@ -146,7 +146,7 @@ getSpNames <- function(inPath, taxa) {
 #'                    Must have column names "species", "eastings" and "northings".
 #' @param species String. Species name.
 #' @param minYear Numeric. Lower threshold.
-#' @param minYear Numeric. Upper threshold.
+#' @param maxYear Numeric. Upper threshold.
 #' @param nAbs Numeric. Number of pseudo absences to create.
 #' @param matchpres Logical. If TRUE this overrides nAbs and creates pseudo absences in equal number to the occurrence data.
 #' @param recThresh Numeric. Lower threshold number of records; species with fewer records are dropped.
@@ -252,7 +252,7 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 #' Fit logistic regression, random forest or Maxent models using the outputs of createPresAb and some covariates.
 #'
 #' @param species String. Species name (see getSpNames).
-#' @param model string. One of "lr", "rf" or "max" for logistic regression, random forest or Maxent.
+#' @param model string. One of "lr", "lrReg", rf" or "max" for logistic regression, regularized logistic regression, random forest or Maxent.
 #' @param envDat String. rasterStack object with n layers each representing a covariate.
 #' @param spDat String. Outputs of createPresAb for the chosen species.
 #' @param k Numeric. Number of folds for cross validation. Defaults to 5.
@@ -264,9 +264,9 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 #' @param plot Logical. Whether or not to show plots of predicted probabilities of occurrence if predict = TRUE.
 #' @export
 #' @return
-#' A list with seven elements: 1) species name; 2) number of occurrence records; 3) a model object
-#' (either of type glm for "lr" or randomForest); 4) Number of folds for validation; 5) AUC score;
-#' 6) predicted probabilities of occurrence in raster format; and 7) the data used to fit the model
+#' A list with seven elements: 1) species name; 2) number of occurrence records; 3) a model object;
+#' 4) Number of folds for validation; 5) AUC score;
+#' 6) predicted habitat suitability scores in raster format; and 7) the data used to fit the model
 #' (a dataframe with a column for observations and further columns for the corresponding covariates).
 
 fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict = TRUE, plot = TRUE) {
@@ -560,7 +560,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 #' @param write Logical. Whether or not to write outputs to file.
 #' @param outPath String. Where to save outputs if write = TRUE.
 #' @param models String or character vector. Which models to include in skill assessment. Options are
-#'               "lr", "rf" and "max".
+#'               "lr", "lrReg", "rf" and "max".
 #' @export
 #' @return
 #' A dataframe with columns for species and the skill of each type of model for that species.
@@ -611,7 +611,7 @@ getSkill <- function(inPath, group, write, outPath, models) {
 #' @param skillDat. String. getSkill outputs for the chosen group.
 #' @param species String. Species name.
 #' @param models String or character vector. SDM algorithms to be included in model averaging. Options are
-#'               "lr" for logistic regression", "rf" for random forests and "max" for maxent.
+#'               "lr" for logistic regression", "lrReg" for regularized logistic regression, "rf" for random forests and "max" for maxent.
 #' @param plot Logical. Whether or not to plot the predictions from each algorithm and the final ensemble.
 #' @param skillThresh Numeric. Algorithms with AUC scores below this value are dropped from the ensemble.
 #' @export
@@ -647,7 +647,7 @@ modelAverage <- function(inPath, outPath, skillDat, species, models, plot = TRUE
 
       assign(paste0(i, "Rast"), out$meanPrediction)
 
-      ## drop models with AUC a threshold or NA. If NA it means that only intercept-only models were produced by lrReg
+      ## drop models with AUC below threshold or NA. If NA it means that only intercept-only models were produced by lrReg
 
       if (get(paste0(i, "Skill")) <= skillThresh | is.na(get(paste0(i, "Skill")))) assign(paste0(i, "Skill"), 0)
 
