@@ -210,7 +210,7 @@ createPresAb <- function (dat, taxon, species, minYear, maxYear, nAbs, matchPres
 
     if (!is.null(screenRaster)) {
 
-      for (i in 1:nlayers(screenRaster)) {
+      for (i in 1:raster::nlayers(screenRaster)) {
 
         presDrop <- raster::extract(screenRaster[[i]], out$Presence)
 
@@ -319,7 +319,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
     } else {
 
-      ab <- data.frame(val = 0, extract(x = envDat, y = spDat$pseudoAbsence))
+      ab <- data.frame(val = 0, raster::extract(x = envDat, y = spDat$pseudoAbsence))
 
       if (any(is.na(ab$X_Precipitation.of.Driest.Month))) {
 
@@ -385,7 +385,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
           if (predict == TRUE) {
 
-            assign(paste0("pred", i), predict(envDat, get(paste0("mod", i)), type= "response"))
+            assign(paste0("pred", i), raster::predict(envDat, get(paste0("mod", i)), type= "response"))
 
           }
 
@@ -398,7 +398,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
           if (predict == TRUE) {
 
-            assign(paste0("pred", i), predict(envDat, get(paste0("mod", i)), type = "prob", index = 2))
+            assign(paste0("pred", i), raster::predict(envDat, get(paste0("mod", i)), type = "prob", index = 2))
 
           }
 
@@ -408,7 +408,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
           if (predict == TRUE) {
 
-            assign(paste0("pred", i), predict(envDat, get(paste0("mod", i))))
+            assign(paste0("pred", i), raster::predict(envDat, get(paste0("mod", i))))
 
           }
 
@@ -422,7 +422,7 @@ fitSDM <- function(species, model, envDat, spDat, k = 5, write, outPath, predict
 
           if (predict == TRUE) {
 
-            pred <- predict(get(paste0("mod", i)), covsMat[, 3:ncol(covsMat)], type = "response")
+            pred <- raster::predict(get(paste0("mod", i)), covsMat[, 3:ncol(covsMat)], type = "response")
 
             pred <- as.matrix(cbind(covsMat[, 1:2], pred))
 
